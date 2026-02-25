@@ -3,157 +3,203 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🌍 Планета 📍</title>
-
+    <link rel="manifest" href="./manifest.json">
+    <title>AR Світ ЗОШ №6</title>
+    
     <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
     <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar-nft.js"></script>
 
     <style>
-        html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #000; font-family: 'Comic Neue', 'Comic Sans MS', cursive, sans-serif; }
-        
-        .arjs-loader {
-            height: 100%; width: 100%; position: absolute; top: 0; left: 0;
-            background: rgba(135, 206, 235, 0.9); z-index: 9999;
-            display: flex; flex-direction: column; justify-content: center; align-items: center;
-            color: #FF4500; font-size: 1.5em; text-align: center; padding: 20px; box-sizing: border-box;
+        /* Системний шрифт Apple/Android для максимальної читабельності */
+        :root {
+            --ui-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
         }
 
+        html, body { 
+            margin: 0; 
+            overflow: hidden; 
+            background: #000; 
+            font-family: var(--ui-font);
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* Адаптивна панель підказок */
+        .guide-ui {
+            position: fixed; 
+            top: env(safe-area-inset-top, 20px); /* Враховує "виріз" на iPhone */
+            left: 50%; 
+            transform: translateX(-50%);
+            width: 85%; 
+            max-width: 450px;
+            background: rgba(255, 255, 255, 0.92); 
+            color: #1a1a1a;
+            padding: 15px 20px; 
+            border-radius: 24px; 
+            text-align: center;
+            z-index: 1000; 
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.4);
+            backdrop-filter: blur(10px);
+        }
+
+        #instruction {
+            font-size: 18px;
+            font-weight: 600;
+            line-height: 1.4;
+            margin-bottom: 5px;
+        }
+
+        #distance-badge {
+            display: inline-block;
+            background: #4facfe;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        /* Кнопки знизу */
         .controls {
-            position: absolute; bottom: 25px; left: 50%; transform: translateX(-50%);
-            z-index: 10000; display: flex; gap: 10px; width: 95%; justify-content: center;
+            position: fixed;
+            bottom: env(safe-area-inset-bottom, 30px);
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            z-index: 1000;
         }
 
         .btn {
-            padding: 12px 20px; border: none; border-radius: 20px;
-            cursor: pointer; font-size: 1em; font-weight: bold;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.3); text-decoration: none;
-            color: white; font-family: inherit;
+            background: rgba(255, 255, 255, 0.9);
+            border: none;
+            padding: 14px 24px;
+            border-radius: 18px;
+            font-weight: 700;
+            font-size: 16px;
+            color: #1a1a1a;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
-        .sound-btn { background-color: #4CAF50; }
-        .sound-btn.off { background-color: #f44336; }
-        .youtube-btn { background-color: #FF9800; }
 
-        .status-panel {
-            position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
-            width: 80%; background: rgba(255, 255, 255, 0.8);
-            padding: 10px; border-radius: 15px; text-align: center;
-            z-index: 10000; font-size: 0.9em; color: #333; box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        /* Стиль для лоадера */
+        .arjs-loader {
+            background: #4facfe;
+            color: white;
+            font-weight: bold;
+        }
+
+        /* Медіа-запити для маленьких екранів */
+        @underline screen and (max-height: 700px) {
+            #instruction { font-size: 16px; }
+            .btn { padding: 10px 18px; font-size: 14px; }
         }
     </style>
 </head>
-<body style="margin: 0; overflow: hidden;">
+<body>
 
-    <div class="arjs-loader" id="loader">
-        <div>🌍 Світ поруч! 🎈</div>
-        <div style="margin-top: 15px; font-size: 0.7em;">Шукаємо точку біля ЗОШ №6...<br>Дозволь доступ до GPS та камери.</div>
+    <div class="guide-ui" id="ui">
+        <div id="instruction">Дозвольте GPS та камеру 🛰️</div>
+        <div id="distance-badge">Пошук...</div>
     </div>
 
-    <div class="status-panel" id="status-panel">
-        <span id="distance-text">Очікуємо GPS дані...</span>
+    <div class="controls">
+        <button id="quiz-btn" class="btn">📝 Почати тест</button>
+        <button id="sound-btn" class="btn">🎵 Звук</button>
     </div>
 
     <a-scene
         vr-mode-ui="enabled: false"
         embedded
-        arjs="sourceType: webcam; debugUIEnabled: false;"
-        renderer="logarithmicDepthBuffer: true; colorManagement: true;"
+        arjs="sourceType: webcam; debugUIEnabled: false; trackingMethod: best;"
+        renderer="antialias: true; alpha: true; logarithmicDepthBuffer: true;"
     >
         <a-assets>
             <img id="earth-texture" src="./earth.jpg" crossorigin="anonymous">
             <audio id="bg-music" src="./bg-music.mp3" preload="auto" loop></audio>
         </a-assets>
 
-        <a-entity 
-            id="planet-container"
-            gps-entity-place="latitude: 46.297082; longitude: 30.650495;"
-            position="0 1.2 0"
-            scale="12 12 12"
-        >
-            <a-sphere
-                id="hand-planet"
-                radius="1"
+        <a-entity id="ar-world" gps-entity-place="latitude: 46.297082; longitude: 30.650495;">
+            
+            <a-sphere 
+                id="main-planet"
+                position="0 1.2 0" 
+                radius="2" 
                 src="#earth-texture"
-                material="side: double"
-                animation="property: rotation; to: 0 360 0; loop: true; dur: 25000; easing: linear"
-            ></a-sphere>
+                animation="property: rotation; to: 0 360 0; loop: true; dur: 25000; easing: linear">
+            </a-sphere>
 
-            <a-sphere radius="1.08" material="color: #87CEFA; transparent: true; opacity: 0.15; side: double"></a-sphere>
+            <a-entity id="quiz-3d" position="4 1.5 -1" visible="false">
+                <a-plane width="3.5" height="2.5" color="#ffffff" opacity="0.9" border-radius="0.2"></a-plane>
+                <a-text value="Які опади \nу вигляді кульок?" color="#1a1a1a" align="center" position="0 0.5 0.1" width="3"></a-text>
+                
+                <a-entity position="0 -0.2 0.1" class="clickable" onclick="check(1)">
+                    <a-plane width="2.8" height="0.4" color="#4facfe"></a-plane>
+                    <a-text value="Град" align="center" width="2.8" color="white"></a-text>
+                </a-entity>
+                <a-entity position="0 -0.7 0.1" class="clickable" onclick="check(0)">
+                    <a-plane width="2.8" height="0.4" color="#f0f0f0"></a-plane>
+                    <a-text value="Сніг" align="center" width="2.8" color="#333"></a-text>
+                </a-entity>
+            </a-entity>
         </a-entity>
 
-        <a-camera gps-camera="minDistance: 1; maxDistance: 100;" rotation-reader></a-camera>
+        <a-camera gps-camera="simulateLatitude: 46.297082; simulateLongitude: 30.650495; minDistance: 1;" rotation-reader>
+            <a-cursor fuse="true" fuse-timeout="1200" color="#4facfe" scale="0.6 0.6 0.6"></a-cursor>
+        </a-camera>
     </a-scene>
 
-    <div class="controls">
-        <button id="sound-btn" class="btn sound-btn">Увімкнути звук</button>
-        <a href="https://www.youtube.com/playlist?list=PL6UDFwT9TzFw5K8Tzu_OgsDz7vV3N9eY-" target="_blank" class="btn youtube-btn">YouTube</a>
-    </div>
-
     <script>
+        const instruction = document.getElementById('instruction');
+        const badge = document.getElementById('distance-badge');
+        const quiz3d = document.getElementById('quiz-3d');
         const bgMusic = document.getElementById('bg-music');
-        const soundBtn = document.getElementById('sound-btn');
-        const loader = document.getElementById('loader');
-        const distText = document.getElementById('distance-text');
-        const planetContainer = document.getElementById('planet-container');
-        const planetSphere = document.getElementById('hand-planet');
 
-        window.addEventListener('arjs-video-loaded', () => {
-            loader.style.display = 'none';
+        // Логіка оновлення UI
+        window.addEventListener('gps-entity-place-update-positon', (e) => {
+            const dist = Math.round(e.detail.distance);
+            if (dist > 30) {
+                instruction.innerText = "Йдіть ближче до школи 🏫";
+                badge.innerText = `${dist} м`;
+                badge.style.background = "#ff6b6b";
+            } else {
+                instruction.innerText = "Дивись навколо, планета поруч! 🌍";
+                badge.innerText = "Ви на місці";
+                badge.style.background = "#4facfe";
+            }
         });
 
-        soundBtn.addEventListener('click', () => {
+        // Кнопка вікторини
+        document.getElementById('quiz-btn').onclick = () => {
+            const isVisible = quiz3d.getAttribute('visible');
+            quiz3d.setAttribute('visible', !isVisible);
+        };
+
+        // Кнопка звуку + фікс для iOS
+        document.getElementById('sound-btn').onclick = () => {
             if (bgMusic.paused) {
-                bgMusic.play().catch(e => console.log("Audio Error:", e));
-                soundBtn.textContent = 'Вимкнути звук';
-                soundBtn.classList.remove('off');
+                bgMusic.play();
+                document.getElementById('sound-btn').innerText = "🔇 Вимкнути";
             } else {
                 bgMusic.pause();
-                soundBtn.textContent = 'Увімкнути звук';
-                soundBtn.classList.add('off');
+                document.getElementById('sound-btn').innerText = "🎵 Звук";
             }
-        });
+        };
 
-        window.addEventListener('gps-entity-place-update-positon', (e) => {
-            const distance = e.detail.distance;
-            if (distance > 1000) {
-                distText.innerText = `До об'єкта: ${(distance/1000).toFixed(2)} км`;
-            } else {
-                distText.innerText = `Планета перед тобою! Відстань: ${Math.round(distance)} м`;
-            }
-        });
+        function check(isCorrect) {
+            alert(isCorrect ? "✅ Правильно! Це Град." : "❌ Спробуй ще раз!");
+        }
 
-        // ІНТЕРАКТИВ (КРУТІННЯ ТА ЗУМ)
-        let lastDist = 0;
-        let startX = 0;
-
-        document.addEventListener('touchstart', (e) => {
-            if (e.touches.length === 1) {
-                startX = e.touches[0].pageX;
-            } else if (e.touches.length === 2) {
-                const dx = e.touches[0].pageX - e.touches[1].pageX;
-                const dy = e.touches[0].pageY - e.touches[1].pageY;
-                lastDist = Math.sqrt(dx * dx + dy * dy);
-            }
-        });
-
-        document.addEventListener('touchmove', (e) => {
-            if (e.touches.length === 1 && planetSphere) {
-                const deltaX = e.touches[0].pageX - startX;
-                planetSphere.object3D.rotation.y += deltaX * 0.01;
-                startX = e.touches[0].pageX;
-            }
-            
-            if (e.touches.length === 2 && planetContainer) {
-                const dx = e.touches[0].pageX - e.touches[1].pageX;
-                const dy = e.touches[0].pageY - e.touches[1].pageY;
-                const dist = Math.sqrt(dx * dx + dy * dy);
-                const factor = dist / lastDist;
-                let currentScale = planetContainer.getAttribute('scale');
-                let newS = Math.max(2, Math.min(60, currentScale.x * factor));
-                planetContainer.setAttribute('scale', `${newS} ${newS} ${newS}`);
-                lastDist = dist;
-            }
+        // Запит дозволів для iPhone
+        window.addEventListener('load', () => {
+            document.body.addEventListener('click', () => {
+                if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+                    DeviceOrientationEvent.requestPermission();
+                }
+            }, { once: true });
         });
     </script>
 </body>
 </html>
-
