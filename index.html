@@ -6,11 +6,12 @@
     <link rel="manifest" href="./manifest.json">
     <title>AR Світ ЗОШ №6</title>
     
+    <!-- ✅ Виправлено: видалено пробіли в URL -->
     <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
-    <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar-nft.js"></script>
+    <!-- ✅ Виправлено: завантажено GPS-версію AR.js замість NFT -->
+    <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
 
     <style>
-        /* Системний шрифт Apple/Android для максимальної читабельності */
         :root {
             --ui-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
         }
@@ -21,12 +22,12 @@
             background: #000; 
             font-family: var(--ui-font);
             -webkit-font-smoothing: antialiased;
+            touch-action: none; /* ✅ Покращено для мобільних */
         }
 
-        /* Адаптивна панель підказок */
         .guide-ui {
             position: fixed; 
-            top: env(safe-area-inset-top, 20px); /* Враховує "виріз" на iPhone */
+            top: env(safe-area-inset-top, 20px);
             left: 50%; 
             transform: translateX(-50%);
             width: 85%; 
@@ -40,6 +41,7 @@
             box-shadow: 0 8px 32px rgba(0,0,0,0.3);
             border: 1px solid rgba(255,255,255,0.4);
             backdrop-filter: blur(10px);
+            pointer-events: none; /* ✅ Щоб не блокував кліки по AR-сцені */
         }
 
         #instruction {
@@ -59,7 +61,6 @@
             font-weight: bold;
         }
 
-        /* Кнопки знизу */
         .controls {
             position: fixed;
             bottom: env(safe-area-inset-bottom, 30px);
@@ -68,6 +69,7 @@
             justify-content: center;
             gap: 15px;
             z-index: 1000;
+            pointer-events: auto; /* ✅ Кнопки мають реагувати на кліки */
         }
 
         .btn {
@@ -82,17 +84,23 @@
             display: flex;
             align-items: center;
             gap: 8px;
+            cursor: pointer;
+            pointer-events: auto;
+            transition: transform 0.1s;
+        }
+        
+        .btn:active {
+            transform: scale(0.98);
         }
 
-        /* Стиль для лоадера */
         .arjs-loader {
             background: #4facfe;
             color: white;
             font-weight: bold;
         }
 
-        /* Медіа-запити для маленьких екранів */
-        @underline screen and (max-height: 700px) {
+        /* ✅ Виправлено: @underline → @media */
+        @media screen and (max-height: 700px) {
             #instruction { font-size: 16px; }
             .btn { padding: 10px 18px; font-size: 14px; }
         }
@@ -114,11 +122,13 @@
         vr-mode-ui="enabled: false"
         embedded
         arjs="sourceType: webcam; debugUIEnabled: false; trackingMethod: best;"
-        renderer="antialias: true; alpha: true; logarithmicDepthBuffer: true;"
+        renderer="antialias: true; alpha: true; logarithmicDepthBuffer: true; colorManagement: true;"
+        renderer="physicallyCorrectLights: true;"
     >
         <a-assets>
+            <!-- ✅ Додано crossorigin для уникнення CORS-помилок -->
             <img id="earth-texture" src="./earth.jpg" crossorigin="anonymous">
-            <audio id="bg-music" src="./bg-music.mp3" preload="auto" loop></audio>
+            <audio id="bg-music" src="./bg-music.mp3" preload="auto" loop crossorigin="anonymous"></audio>
         </a-assets>
 
         <a-entity id="ar-world" gps-entity-place="latitude: 46.297082; longitude: 30.650495;">
@@ -128,26 +138,36 @@
                 position="0 1.2 0" 
                 radius="2" 
                 src="#earth-texture"
-                animation="property: rotation; to: 0 360 0; loop: true; dur: 25000; easing: linear">
+                animation="property: rotation; to: 0 360 0; loop: true; dur: 25000; easing: linear"
+                material="side: double;"> <!-- ✅ Додано side: double для кращої видимості -->
             </a-sphere>
 
-            <a-entity id="quiz-3d" position="4 1.5 -1" visible="false">
-                <a-plane width="3.5" height="2.5" color="#ffffff" opacity="0.9" border-radius="0.2"></a-plane>
-                <a-text value="Які опади \nу вигляді кульок?" color="#1a1a1a" align="center" position="0 0.5 0.1" width="3"></a-text>
+            <a-entity id="quiz-3d" position="0 1.5 -4" visible="false"> <!-- ✅ Змінено позицію для кращої видимості -->
+                <a-plane width="3.5" height="2.5" color="#ffffff" opacity="0.95" border-radius="0.2" material="side: double;"></a-plane>
+                <a-text value="Які опади \nу вигляді кульок?" color="#1a1a1a" align="center" position="0 0.6 0.05" width="3" wrap-count="25"></a-text>
                 
-                <a-entity position="0 -0.2 0.1" class="clickable" onclick="check(1)">
-                    <a-plane width="2.8" height="0.4" color="#4facfe"></a-plane>
-                    <a-text value="Град" align="center" width="2.8" color="white"></a-text>
+                <a-entity position="0 -0.1 0.05" class="clickable" onclick="check(1)" cursor-listener>
+                    <a-plane width="2.8" height="0.45" color="#4facfe" material="side: double;"></a-plane>
+                    <a-text value="Град" align="center" width="2.8" color="white" position="0 0 0.02"></a-text>
                 </a-entity>
-                <a-entity position="0 -0.7 0.1" class="clickable" onclick="check(0)">
-                    <a-plane width="2.8" height="0.4" color="#f0f0f0"></a-plane>
-                    <a-text value="Сніг" align="center" width="2.8" color="#333"></a-text>
+                <a-entity position="0 -0.65 0.05" class="clickable" onclick="check(0)" cursor-listener>
+                    <a-plane width="2.8" height="0.45" color="#f0f0f0" material="side: double;"></a-plane>
+                    <a-text value="Сніг" align="center" width="2.8" color="#333" position="0 0 0.02"></a-text>
                 </a-entity>
             </a-entity>
         </a-entity>
 
-        <a-camera gps-camera="simulateLatitude: 46.297082; simulateLongitude: 30.650495; minDistance: 1;" rotation-reader>
-            <a-cursor fuse="true" fuse-timeout="1200" color="#4facfe" scale="0.6 0.6 0.6"></a-cursor>
+        <a-camera 
+            gps-camera="simulateLatitude: 46.297082; simulateLongitude: 30.650495; minDistance: 1;" 
+            rotation-reader
+            look-controls-enabled="true"> <!-- ✅ Додано для кращого керування -->
+            <a-cursor 
+                fuse="true" 
+                fuse-timeout="800" <!-- ✅ Зменшено час для швидшої реакції -->
+                color="#4facfe" 
+                scale="0.6 0.6 0.6"
+                animation__click="property: scale; startEvents: click; easing: easeInCubic; dur: 150; from: 0.6 0.6 0.6; to: 0.3 0.3 0.3">
+            </a-cursor>
         </a-camera>
     </a-scene>
 
@@ -156,9 +176,10 @@
         const badge = document.getElementById('distance-badge');
         const quiz3d = document.getElementById('quiz-3d');
         const bgMusic = document.getElementById('bg-music');
+        let isSoundEnabled = false;
 
-        // Логіка оновлення UI
-        window.addEventListener('gps-entity-place-update-positon', (e) => {
+        // ✅ Виправлено назву події: update-positon → update-position
+        window.addEventListener('gps-entity-place-update-position', (e) => {
             const dist = Math.round(e.detail.distance);
             if (dist > 30) {
                 instruction.innerText = "Йдіть ближче до школи 🏫";
@@ -175,31 +196,90 @@
         document.getElementById('quiz-btn').onclick = () => {
             const isVisible = quiz3d.getAttribute('visible');
             quiz3d.setAttribute('visible', !isVisible);
+            // ✅ Анімація появи
+            if (!isVisible) {
+                quiz3d.setAttribute('animation__appear', 'property: scale; from: 0.1 0.1 0.1; to: 1 1 1; dur: 300; easing: easeOutQuad');
+            }
         };
 
-        // Кнопка звуку + фікс для iOS
-        document.getElementById('sound-btn').onclick = () => {
-            if (bgMusic.paused) {
-                bgMusic.play();
-                document.getElementById('sound-btn').innerText = "🔇 Вимкнути";
+        // ✅ Покращена обробка звуку для iOS/Android
+        const unlockAudio = () => {
+            if (!isSoundEnabled) {
+                bgMusic.play().then(() => {
+                    isSoundEnabled = true;
+                    document.getElementById('sound-btn').innerText = "🔇 Вимкнути";
+                }).catch(err => {
+                    console.log('Аудіо не запустилось (політика браузера):', err);
+                    // Спробуємо знову при наступному кліку
+                });
             } else {
                 bgMusic.pause();
+                isSoundEnabled = false;
                 document.getElementById('sound-btn').innerText = "🎵 Звук";
             }
         };
 
+        document.getElementById('sound-btn').onclick = unlockAudio;
+        
+        // ✅ Розблокування аудіо при першому дотику будь-де (для iOS)
+        document.body.addEventListener('touchstart', () => {
+            if (!isSoundEnabled && bgMusic.paused) {
+                // Не запускаємо автоматично, але готуємо контекст
+                bgMusic.volume = 0.1;
+                bgMusic.play().then(() => {
+                    bgMusic.pause();
+                    bgMusic.volume = 0.7;
+                }).catch(() => {});
+            }
+        }, { once: true });
+
         function check(isCorrect) {
-            alert(isCorrect ? "✅ Правильно! Це Град." : "❌ Спробуй ще раз!");
+            // ✅ Замінено alert на більш елегантне повідомлення
+            const msg = document.createElement('div');
+            msg.style.cssText = `
+                position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+                background: ${isCorrect ? '#4ade80' : '#f87171'}; color: white;
+                padding: 15px 25px; border-radius: 16px; font-weight: 600; font-size: 18px;
+                z-index: 2000; box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+                animation: fadeOut 2s forwards;
+            `;
+            msg.innerText = isCorrect ? "✅ Правильно! Це Град." : "❌ Спробуй ще раз!";
+            document.body.appendChild(msg);
+            
+            // Додаємо анімацію зникнення
+            const style = document.createElement('style');
+            style.textContent = `
+                @keyframes fadeOut {
+                    0%, 70% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+                    100% { opacity: 0; transform: translate(-50%, -50%) scale(0.9); }
+                }
+            `;
+            document.head.appendChild(style);
+            
+            setTimeout(() => msg.remove(), 2000);
         }
 
-        // Запит дозволів для iPhone
-        window.addEventListener('load', () => {
+        // ✅ Запит дозволів для iOS (DeviceOrientation)
+        if (typeof DeviceOrientationEvent !== 'undefined' && 
+            typeof DeviceOrientationEvent.requestPermission === 'function') {
             document.body.addEventListener('click', () => {
-                if (typeof DeviceOrientationEvent.requestPermission === 'function') {
-                    DeviceOrientationEvent.requestPermission();
-                }
+                DeviceOrientationEvent.requestPermission()
+                    .then(permissionState => {
+                        if (permissionState === 'granted') {
+                            console.log('Дозвіл на орієнтацію отримано');
+                        }
+                    })
+                    .catch(console.error);
             }, { once: true });
-        });
+        }
+
+        // ✅ Обробка помилок завантаження ресурсів
+        window.addEventListener('error', (e) => {
+            if (e.target.tagName === 'IMG' || e.target.tagName === 'AUDIO') {
+                console.warn('Не вдалося завантажити:', e.target.src);
+                instruction.innerText = "⚠️ Перевірте підключення до інтернету";
+            }
+        }, true);
     </script>
 </body>
 </html>
