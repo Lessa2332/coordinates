@@ -5,10 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>AR Світ ЗОШ №6 – Атмосферні опади</title>
     
-    <!-- Маніфест для PWA -->
     <link rel="manifest" href="./manifest.json">
     
-    <!-- Стабільні версії A-Frame та AR.js -->
     <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
     <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar-nft.js"></script>
 
@@ -137,7 +135,6 @@
     </style>
 </head>
 <body>
-    <!-- Лоадер AR.js -->
     <div class="arjs-loader" id="loader">🛰️ Завантаження AR ...</div>
 
     <div class="ui-panel" id="uiPanel">
@@ -149,7 +146,6 @@
         <button id="quizBtn" class="btn">📋 Тест (12)</button>
         <button id="soundBtn" class="btn">🔊 Звук</button>
         <button id="refreshBtn" class="btn">🔄 GPS</button>
-        <button id="camBtn" class="btn">📷 Тилова камера</button>
         <button id="photoBtn" class="btn">📸 Зробити фото</button>
     </div>
 
@@ -163,19 +159,15 @@
         style="position: fixed; top: 0; left: 0; width: 100%; height: 100%;"
     >
         <a-assets>
-            <!-- Локальна текстура Землі -->
             <img id="earthTexture" src="./earth.jpg" crossorigin="anonymous">
-            <!-- Локальний аудіофайл (без CORS проблем) -->
             <audio id="bgMusic" src="./bg-music.mp3" preload="auto" loop crossorigin="anonymous"></audio>
         </a-assets>
 
-        <!-- Контейнер планети, прив'язаний до координат школи -->
         <a-entity
             id="planetContainer"
             gps-entity-place="latitude: 46.297082; longitude: 30.650495;"
             position="0 1.2 0"
         >
-            <!-- Сама планета (куля) -->
             <a-sphere
                 id="planet"
                 radius="2.5"
@@ -185,11 +177,9 @@
                 visible="false"
             ></a-sphere>
 
-            <!-- 3D-вікторина -->
             <a-entity id="quizContainer" position="3 1.8 -1" scale="0.8 0.8 0.8" visible="false">
                 <a-plane width="4.2" height="3.5" color="#ffffff" opacity="0.95" material="side: double; transparent: true" position="0 0 -0.1"></a-plane>
                 <a-text id="questionText" value="Запитання 1/12" color="#111" align="center" position="0 1.4 0" width="3.8" wrap-count="20" baseline="top" font="roboto"></a-text>
-                <!-- Кнопки відповідей (клас clickable для курсора) -->
                 <a-entity id="answerA" class="clickable" position="-0.9 0.3 0" scale="1 1 1" onclick="handleAnswer(0)">
                     <a-plane width="1.9" height="0.7" color="#4facfe" material="side: double; transparent: true" radius="0.15"></a-plane>
                     <a-text id="answerAText" value="Варіант А" color="white" align="center" position="0 0 0.05" width="1.8"></a-text>
@@ -198,7 +188,6 @@
                     <a-plane width="1.9" height="0.7" color="#4facfe" material="side: double; transparent: true" radius="0.15"></a-plane>
                     <a-text id="answerBText" value="Варіант Б" color="white" align="center" position="0 0 0.05" width="1.8"></a-text>
                 </a-entity>
-                <!-- Кнопка "Далі" (клас clickable) -->
                 <a-entity id="nextBtn" class="clickable" position="0 -0.9 0" visible="false" onclick="nextQuestion()">
                     <a-plane width="1.5" height="0.6" color="#ffaa00" material="side: double;" radius="0.2"></a-plane>
                     <a-text value="▶ Далі" color="white" align="center" position="0 0 0.05" width="1.4"></a-text>
@@ -206,7 +195,6 @@
             </a-entity>
         </a-entity>
 
-        <!-- Камера з GPS та курсором (raycaster обмежено класом clickable) -->
         <a-camera id="camera" gps-camera="minDistance: 1; maxDistance: 500;" rotation-reader>
             <a-cursor color="#4facfe" scale="0.7 0.7 0.7" fuse="false" raycaster="objects: .clickable"></a-cursor>
         </a-camera>
@@ -214,13 +202,11 @@
 
     <script>
         (function() {
-            // ======================== НАЛАШТУВАННЯ ========================
-            const DEV_MODE = false; // Змініть на true для тестування без GPS
+            const DEV_MODE = false;
             const TARGET_LAT = 46.297082;
             const TARGET_LON = 30.650495;
-            const MAX_DISTANCE = 30; // метрів
+            const MAX_DISTANCE = 30;
 
-            // ======================== 12 ЗАПИТАНЬ ========================
             const questions = [
                 { q: "Які опади випадають у вигляді кульок льоду?", a: "Град", b: "Сніг", correct: 0 },
                 { q: "Що утворюється при конденсації пари на холодній поверхні влітку?", a: "Роса", b: "Іній", correct: 0 },
@@ -240,13 +226,11 @@
             let answered = false;
             let score = 0;
 
-            // ======================== ЕЛЕМЕНТИ DOM ========================
             const instructionEl = document.getElementById('instruction');
             const distanceBadge = document.getElementById('distance-badge');
             const quizBtn = document.getElementById('quizBtn');
             const soundBtn = document.getElementById('soundBtn');
             const refreshBtn = document.getElementById('refreshBtn');
-            const camBtn = document.getElementById('camBtn');
             const photoBtn = document.getElementById('photoBtn');
             const planet = document.getElementById('planet');
             const quizContainer = document.getElementById('quizContainer');
@@ -260,59 +244,6 @@
             let isSoundOn = false;
             let gpsWatcher = null;
 
-            // ======================== НАЛАШТУВАННЯ КАМЕРИ ========================
-            const urlParams = new URLSearchParams(window.location.search);
-            let currentFacingMode = urlParams.get('facingMode') || 'environment';
-
-            scene.setAttribute('arjs', `sourceType: webcam; debugUIEnabled: false; trackingMethod: best; videoTexture: true; facingMode: ${currentFacingMode};`);
-
-            function updateCamButtonText() {
-                camBtn.innerHTML = currentFacingMode === 'environment' ? '📷 Тилова камера' : '📷 Фронтальна камера';
-            }
-            updateCamButtonText();
-
-            camBtn.addEventListener('click', () => {
-                const newFacing = currentFacingMode === 'environment' ? 'user' : 'environment';
-                const url = new URL(window.location.href);
-                url.searchParams.set('facingMode', newFacing);
-                window.location.href = url.toString();
-            });
-
-            // ======================== ФУНКЦІЯ ФОТО ========================
-            function takeScreenshot() {
-                if (!scene.renderer) {
-                    showToast('Рендерер ще не готовий', false);
-                    return;
-                }
-                const canvas = scene.renderer.domElement;
-                if (!canvas) {
-                    showToast('Сцена ще не готова', false);
-                    return;
-                }
-
-                const link = document.createElement('a');
-                link.download = `ar_selfie_${new Date().toISOString().slice(0,19).replace(/:/g, '-')}.png`;
-                
-                canvas.toBlob((blob) => {
-                    if (!blob) {
-                        showToast('Не вдалося створити фото', false);
-                        return;
-                    }
-                    const url = URL.createObjectURL(blob);
-                    link.href = url;
-                    link.click();
-
-                    setTimeout(() => {
-                        URL.revokeObjectURL(url);
-                    }, 100);
-
-                    showToast('✅ Фото збережено в галерею!', true);
-                }, 'image/png');
-            }
-
-            photoBtn.addEventListener('click', takeScreenshot);
-
-            // ======================== ДОПОМІЖНІ ФУНКЦІЇ ========================
             function showToast(msg, isSuccess = true) {
                 const toast = document.createElement('div');
                 toast.className = 'toast-message';
@@ -407,6 +338,43 @@
                 document.body.removeEventListener('touchstart', unlock);
             }, { once: true });
 
+            // ======================== ФУНКЦІЯ ФОТО ========================
+            function takeScreenshot() {
+                if (!scene.renderer) {
+                    showToast('Рендерер ще не готовий', false);
+                    return;
+                }
+                const canvas = scene.renderer.domElement;
+                if (!canvas) {
+                    showToast('Сцена ще не готова', false);
+                    return;
+                }
+
+                // Перевіримо, чи canvas не порожній (хоча б якийсь колір)
+                // Можна також перевірити, чи відображається планета, але це не обов'язково
+
+                const link = document.createElement('a');
+                link.download = `ar_selfie_${new Date().toISOString().slice(0,19).replace(/:/g, '-')}.png`;
+                
+                canvas.toBlob((blob) => {
+                    if (!blob) {
+                        showToast('Не вдалося створити фото', false);
+                        return;
+                    }
+                    const url = URL.createObjectURL(blob);
+                    link.href = url;
+                    link.click();
+
+                    setTimeout(() => {
+                        URL.revokeObjectURL(url);
+                    }, 100);
+
+                    showToast('✅ Фото збережено в галерею!', true);
+                }, 'image/png');
+            }
+
+            photoBtn.addEventListener('click', takeScreenshot);
+
             // ======================== ЛОГІКА ВІКТОРИНИ ========================
             function showQuestion(index) {
                 const q = questions[index];
@@ -467,7 +435,6 @@
                 startGPS();
             });
 
-            // ======================== ІНІЦІАЛІЗАЦІЯ ========================
             window.addEventListener('load', () => {
                 if (!DEV_MODE) {
                     startGPS();
