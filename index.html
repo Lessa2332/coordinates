@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>AR Світ ЗОШ №6 — Атмосферні опади</title>
+    <title>AR Світ ЗОШ №6 – Атмосферні опади</title>
     
-    <!-- Стабільні версії A-Frame та AR.js (перевірено) -->
+    <!-- Стабільні версії A-Frame та AR.js -->
     <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
     <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar-nft.js"></script>
 
@@ -24,11 +24,6 @@
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
             touch-action: none;
         }
-        /* Відео на весь екран (AR.js вбудує його автоматично, але для впевненості) */
-        .arjs-video {
-            object-fit: cover !important;
-        }
-        /* Інтерфейс поверх AR */
         .ui-panel {
             position: fixed;
             top: env(safe-area-inset-top, 16px);
@@ -102,7 +97,6 @@
             font-weight: 600;
             z-index: 3000;
         }
-        /* Тимчасове повідомлення відповіді */
         .toast-message {
             position: fixed;
             top: 50%;
@@ -128,14 +122,11 @@
     </style>
 </head>
 <body>
-
-    <!-- Інформаційна панель зверху -->
     <div class="ui-panel" id="uiPanel">
         <div id="instruction">🌍 Шукаємо GPS та камеру…</div>
         <div id="distance-badge">— м</div>
     </div>
 
-    <!-- Кнопки керування -->
     <div class="controls">
         <button id="quizBtn" class="btn">📋 Тест (12)</button>
         <button id="soundBtn" class="btn">🔊 Звук</button>
@@ -149,14 +140,13 @@
         embedded
         arjs="sourceType: webcam; debugUIEnabled: false; trackingMethod: best; videoTexture: true;"
         renderer="antialias: true; alpha: true; logarithmicDepthBuffer: true; precision: medium;"
-        keyboard-shortcuts="enabled: false"
         style="position: fixed; top: 0; left: 0; width: 100%; height: 100%;"
     >
         <a-assets>
-            <!-- Текстура Землі (замініть на реальний файл або використайте онлайн) -->
-            <img id="earthTexture" src="https://threejs.org/examples/textures/planets/earth_atmos_2048.jpg" crossorigin="anonymous">
-            <!-- Фонова музика (тиха, атмосферна) – замініть на власний mp3 -->
-            <audio id="bgMusic" src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" preload="auto" loop crossorigin="anonymous"></audio>
+            <!-- Локальна текстура Землі -->
+            <img id="earthTexture" src="./earth.jpg" crossorigin="anonymous">
+            <!-- Локальний аудіофайл (без CORS проблем) -->
+            <audio id="bgMusic" src="./bg-music.mp3" preload="auto" loop crossorigin="anonymous"></audio>
         </a-assets>
 
         <!-- Контейнер планети, прив'язаний до координат школи -->
@@ -175,13 +165,11 @@
                 visible="false"
             ></a-sphere>
 
-            <!-- 3D-вікторина (буде показана окремо) -->
+            <!-- 3D-вікторина -->
             <a-entity id="quizContainer" position="3 1.8 -1" scale="0.8 0.8 0.8" visible="false">
-                <!-- Фонова плашка -->
                 <a-plane width="4.2" height="3.5" color="#ffffff" opacity="0.95" material="side: double; transparent: true" position="0 0 -0.1"></a-plane>
-                <!-- Текст запитання (динамічно змінюється через JS) -->
                 <a-text id="questionText" value="Запитання 1/12" color="#111" align="center" position="0 1.4 0" width="3.8" wrap-count="20" baseline="top" font="roboto"></a-text>
-                <!-- Кнопки відповідей -->
+                <!-- Кнопки відповідей (клас clickable для курсора) -->
                 <a-entity id="answerA" class="clickable" position="-0.9 0.3 0" scale="1 1 1" onclick="handleAnswer(0)">
                     <a-plane width="1.9" height="0.7" color="#4facfe" material="side: double; transparent: true" radius="0.15"></a-plane>
                     <a-text id="answerAText" value="Варіант А" color="white" align="center" position="0 0 0.05" width="1.8"></a-text>
@@ -190,28 +178,27 @@
                     <a-plane width="1.9" height="0.7" color="#4facfe" material="side: double; transparent: true" radius="0.15"></a-plane>
                     <a-text id="answerBText" value="Варіант Б" color="white" align="center" position="0 0 0.05" width="1.8"></a-text>
                 </a-entity>
-                <!-- Кнопка "Далі" (з'являється після відповіді) -->
+                <!-- Кнопка "Далі" (клас clickable) -->
                 <a-entity id="nextBtn" class="clickable" position="0 -0.9 0" visible="false" onclick="nextQuestion()">
                     <a-plane width="1.5" height="0.6" color="#ffaa00" material="side: double;" radius="0.2"></a-plane>
                     <a-text value="▶ Далі" color="white" align="center" position="0 0 0.05" width="1.4"></a-text>
                 </a-entity>
-                <!-- Лічильник (дублюється в тексті запитання, але можна і окремо) -->
             </a-entity>
         </a-entity>
 
-        <!-- Камера з GPS та курсором -->
+        <!-- Камера з GPS та курсором (raycaster обмежено класом clickable) -->
         <a-camera id="camera" gps-camera="minDistance: 1; maxDistance: 500;" rotation-reader>
-            <a-cursor color="#4facfe" scale="0.7 0.7 0.7" fuse="false"></a-cursor>
+            <a-cursor color="#4facfe" scale="0.7 0.7 0.7" fuse="false" raycaster="objects: .clickable"></a-cursor>
         </a-camera>
     </a-scene>
 
     <script>
         (function() {
             // ======================== НАЛАШТУВАННЯ ========================
-            const DEV_MODE = false; // Змінити на false для роботи з реальним GPS
+            const DEV_MODE = false; // Змініть на true для тестування без GPS
             const TARGET_LAT = 46.297082;
             const TARGET_LON = 30.650495;
-            const MAX_DISTANCE = 30; // метрів, на яких планета стає видимою
+            const MAX_DISTANCE = 30; // метрів
 
             // ======================== 12 ЗАПИТАНЬ ========================
             const questions = [
@@ -230,11 +217,10 @@
             ];
 
             let currentQuestionIndex = 0;
-            let answered = false; // чи відповіли на поточне питання (щоб не можна було натиснути двічі)
-            let score = 0; // можна не використовувати, але для цікавості
+            let answered = false;
+            let score = 0;
 
             // ======================== ЕЛЕМЕНТИ DOM ========================
-            const uiPanel = document.getElementById('uiPanel');
             const instructionEl = document.getElementById('instruction');
             const distanceBadge = document.getElementById('distance-badge');
             const quizBtn = document.getElementById('quizBtn');
@@ -248,10 +234,8 @@
             const nextBtn = document.getElementById('nextBtn');
             const bgMusic = document.getElementById('bgMusic');
 
-            // ======================== СТАН ========================
             let isSoundOn = false;
             let gpsWatcher = null;
-            let lastDistance = null;
 
             // ======================== ДОПОМІЖНІ ФУНКЦІЇ ========================
             function showToast(msg, isSuccess = true) {
@@ -263,7 +247,6 @@
                 setTimeout(() => toast.remove(), 1500);
             }
 
-            // Обчислення відстані (гаверсинус)
             function calculateDistance(lat1, lon1, lat2, lon2) {
                 const R = 6371e3;
                 const φ1 = lat1 * Math.PI/180;
@@ -277,7 +260,6 @@
                 return R * c;
             }
 
-            // Оновлення видимості планети залежно від відстані
             function updatePlanetVisibility(dist) {
                 const rounded = Math.round(dist);
                 distanceBadge.innerText = rounded + ' м';
@@ -292,22 +274,6 @@
                 }
             }
 
-            // Обробник події AR.js (оновлення позиції GPS)
-            window.addEventListener('gps-entity-place-update-position', (e) => {
-                if (DEV_MODE) return;
-                const dist = e.detail.distance;
-                if (dist) updatePlanetVisibility(dist);
-            });
-
-            // Якщо DEV_MODE, симулюємо невелику відстань
-            if (DEV_MODE) {
-                console.log('🧪 РЕЖИМ РОЗРОБНИКА: симуляція GPS');
-                setTimeout(() => {
-                    updatePlanetVisibility(5);
-                }, 2000);
-            }
-
-            // Запит реального GPS
             function startGPS() {
                 if (!navigator.geolocation) {
                     instructionEl.innerText = '❌ GPS не підтримується';
@@ -341,7 +307,6 @@
                 );
             }
 
-            // Керування звуком
             function toggleSound() {
                 if (isSoundOn) {
                     bgMusic.pause();
@@ -356,7 +321,7 @@
                 isSoundOn = !isSoundOn;
             }
 
-            // Розблокування аудіо на iOS (перший дотик)
+            // Розблокування аудіо на iOS
             document.body.addEventListener('touchstart', function unlock() {
                 if (!isSoundOn && bgMusic.paused) {
                     bgMusic.volume = 0.1;
@@ -374,13 +339,10 @@
                 questionText.setAttribute('value', `${index+1}/12. ${q.q}`);
                 answerAText.setAttribute('value', q.a);
                 answerBText.setAttribute('value', q.b);
-                // Скидаємо стан
                 answered = false;
                 nextBtn.setAttribute('visible', 'false');
-                // Робимо кнопки знову клікабельними (вони завжди клікабельні, але ми блокуємо логікою)
             }
 
-            // Глобальна функція для обробки відповіді (викликається з onclick в 3D)
             window.handleAnswer = function(selectedIdx) {
                 if (answered) {
                     showToast('Ви вже відповіли', false);
@@ -395,7 +357,6 @@
                     showToast(`❌ Помилка. Правильно: ${q.correct === 0 ? q.a : q.b}`, false);
                 }
                 answered = true;
-                // Показуємо кнопку "Далі"
                 nextBtn.setAttribute('visible', 'true');
             };
 
@@ -404,24 +365,19 @@
                     currentQuestionIndex++;
                     showQuestion(currentQuestionIndex);
                 } else {
-                    // Завершення тесту
                     showToast(`🎉 Тест завершено! Правильних: ${score}/${questions.length}`, true);
                     quizContainer.setAttribute('visible', 'false');
                     quizBtn.classList.remove('active');
-                    // Скинути індекс для наступного разу
                     currentQuestionIndex = 0;
                     score = 0;
                 }
             };
 
-            // Показати/сховати вікторину
             quizBtn.addEventListener('click', () => {
                 const visible = quizContainer.getAttribute('visible') === 'true';
                 if (!visible) {
-                    // Якщо планета не видима (далеко), можна не показувати, але дозволимо
                     quizContainer.setAttribute('visible', 'true');
                     quizBtn.classList.add('active');
-                    // Скинути до першого питання
                     currentQuestionIndex = 0;
                     showQuestion(0);
                 } else {
@@ -430,10 +386,8 @@
                 }
             });
 
-            // Кнопка звуку
             soundBtn.addEventListener('click', toggleSound);
 
-            // Кнопка оновлення GPS
             refreshBtn.addEventListener('click', () => {
                 if (gpsWatcher) navigator.geolocation.clearWatch(gpsWatcher);
                 startGPS();
@@ -441,43 +395,36 @@
 
             // ======================== ІНІЦІАЛІЗАЦІЯ ========================
             window.addEventListener('load', () => {
-                // Запускаємо GPS, якщо не DEV_MODE
                 if (!DEV_MODE) {
                     startGPS();
                 } else {
-                    // Симуляція
-                    updatePlanetVisibility(12); // в межах зони
+                    updatePlanetVisibility(12);
                     instructionEl.innerText = '🧪 РЕЖИМ ТЕСТУ (планета видима)';
                 }
 
-                // iOS орієнтація
                 if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
                     document.body.addEventListener('click', () => {
                         DeviceOrientationEvent.requestPermission().catch(console.warn);
                     }, { once: true });
                 }
 
-                // Сховати лоадер AR.js через деякий час (на випадок, якщо подія не спрацює)
                 setTimeout(() => {
                     const loader = document.querySelector('.arjs-loader');
                     if (loader) loader.style.display = 'none';
                 }, 4000);
             });
 
-            // Додатково: приховуємо лоадер після завантаження AR
             window.addEventListener('arjs-video-loaded', () => {
                 const loader = document.querySelector('.arjs-loader');
                 if (loader) loader.style.display = 'none';
             });
 
-            // Виправлення для події (може бути опечатка в AR.js, але додамо обидва варіанти)
-            window.addEventListener('gps-entity-place-update-positon', (e) => {
+            // Подія від AR.js (оновлення позиції)
+            window.addEventListener('gps-entity-place-update-position', (e) => {
                 if (DEV_MODE) return;
                 const dist = e.detail.distance;
                 if (dist) updatePlanetVisibility(dist);
             });
-
-            // Якщо клікнули поза межами кнопок (наприклад, на планету) – нічого
         })();
     </script>
 </body>
