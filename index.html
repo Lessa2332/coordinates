@@ -142,14 +142,14 @@
     <div class="arjs-loader" id="loader">🛰️ Завантаження AR ...</div>
 
     <div class="ui-panel" id="uiPanel">
-        <div id="instruction">🌍 Шукаємо GPS та камеру…</div>
+        <div id="instruction">🌍 Отримання даних GPS…</div>
         <div id="distance-badge">— м</div>
     </div>
 
     <div class="controls">
         <button id="quizBtn" class="btn">📋 Тест (12)</button>
         <button id="soundBtn" class="btn">🔊 Звук</button>
-        <button id="refreshBtn" class="btn">🔄 GPS</button>
+        <button id="refreshBtn" class="btn">🔄 Перезапустити</button>
         <button id="camBtn" class="btn">📷 Тилова камера</button>
         <button id="photoBtn" class="btn">📸 Зробити фото</button>
     </div>
@@ -174,20 +174,20 @@
         <a-entity
             id="planetContainer"
             gps-entity-place="latitude: 46.297082; longitude: 30.650495;"
-            position="0 1.2 0"
+            position="0 4 0"   <!-- центр на висоті 4 м (планета стоятиме на землі) -->
         >
-            <!-- Сама планета (куля) -->
+            <!-- Сама планета (куля) зі збільшеним радіусом -->
             <a-sphere
                 id="planet"
-                radius="2.5"
+                radius="4"
                 src="#earthTexture"
                 material="shader: flat;"
                 animation="property: rotation; to: 0 360 0; loop: true; dur: 30000; easing: linear"
                 visible="false"
             ></a-sphere>
 
-            <!-- 3D-вікторина -->
-            <a-entity id="quizContainer" position="3 1.8 -1" scale="0.8 0.8 0.8" visible="false">
+            <!-- 3D-вікторина (розташована відносно центра планети) -->
+            <a-entity id="quizContainer" position="4 3 -2" scale="0.9 0.9 0.9" visible="false">
                 <a-plane width="4.2" height="3.5" color="#ffffff" opacity="0.95" material="side: double; transparent: true" position="0 0 -0.1"></a-plane>
                 <a-text id="questionText" value="Запитання 1/12" color="#111" align="center" position="0 1.4 0" width="3.8" wrap-count="20" baseline="top" font="roboto"></a-text>
                 <!-- Кнопки відповідей (клас clickable для курсора) -->
@@ -229,14 +229,14 @@
                 const newFacing = facingMode === 'environment' ? 'user' : 'environment';
                 const url = new URL(window.location.href);
                 url.searchParams.set('facingMode', newFacing);
-                window.location.href = url.toString();
+                window.location.href = url.toString(); // перезавантаження
             });
 
             // ======================== ІНШІ НАЛАШТУВАННЯ ========================
-            const DEV_MODE = false;
+            const DEV_MODE = false; // для тестування без GPS
             const TARGET_LAT = 46.297082;
             const TARGET_LON = 30.650495;
-            const MAX_DISTANCE = 30;
+            const MAX_DISTANCE = 30; // метрів, на якій планета стає видимою
 
             // ======================== 12 ЗАПИТАНЬ ========================
             const questions = [
@@ -274,9 +274,8 @@
             const bgMusic = document.getElementById('bgMusic');
 
             let isSoundOn = false;
-            let gpsWatcher = null;
 
-            // ======================== ВИПРАВЛЕНА ФУНКЦІЯ ФОТО ========================
+            // ======================== ФУНКЦІЯ ФОТО (ВИПРАВЛЕНА) ========================
             function takeScreenshot() {
                 const canvas = scene.renderer?.domElement;
                 if (!canvas) {
@@ -284,13 +283,12 @@
                     return;
                 }
 
-                // Даємо час на завершення рендерингу
+                // Невелика затримка, щоб гарантувати завершення рендерингу
                 setTimeout(() => {
                     try {
                         // Спроба 1: toBlob (краще для пам'яті)
                         canvas.toBlob(blob => {
                             if (!blob) {
-                                // Якщо toBlob не спрацював, пробуємо toDataURL
                                 fallbackToDataURL();
                                 return;
                             }
@@ -350,19 +348,7 @@
                 setTimeout(() => toast.remove(), 1500);
             }
 
-            function calculateDistance(lat1, lon1, lat2, lon2) {
-                const R = 6371e3;
-                const φ1 = lat1 * Math.PI/180;
-                const φ2 = lat2 * Math.PI/180;
-                const Δφ = (lat2-lat1) * Math.PI/180;
-                const Δλ = (lon2-lon1) * Math.PI/180;
-                const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
-                          Math.cos(φ1) * Math.cos(φ2) *
-                          Math.sin(Δλ/2) * Math.sin(Δλ/2);
-                const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-                return R * c;
-            }
-
+            // Оновлення інтерфейсу на основі відстані від AR.js
             function updatePlanetVisibility(dist) {
                 const rounded = Math.round(dist);
                 distanceBadge.innerText = rounded + ' м';
@@ -377,39 +363,7 @@
                 }
             }
 
-            function startGPS() {
-                if (!navigator.geolocation) {
-                    instructionEl.innerText = '❌ GPS не підтримується';
-                    return;
-                }
-                instructionEl.innerText = '📡 Отримання GPS…';
-                navigator.geolocation.getCurrentPosition(
-                    (pos) => {
-                        instructionEl.innerText = '✅ GPS отримано';
-                        if (gpsWatcher) navigator.geolocation.clearWatch(gpsWatcher);
-                        gpsWatcher = navigator.geolocation.watchPosition(
-                            (p) => {
-                                const dist = calculateDistance(
-                                    p.coords.latitude, p.coords.longitude,
-                                    TARGET_LAT, TARGET_LON
-                                );
-                                updatePlanetVisibility(dist);
-                            },
-                            (err) => {
-                                console.warn('watchPosition error:', err);
-                                instructionEl.innerText = '⚠️ Помилка GPS';
-                            },
-                            { enableHighAccuracy: true, maximumAge: 2000, timeout: 10000 }
-                        );
-                    },
-                    (err) => {
-                        instructionEl.innerText = '🔐 Дозвольте доступ до GPS';
-                        console.warn('getCurrentPosition error:', err);
-                    },
-                    { enableHighAccuracy: true, timeout: 15000 }
-                );
-            }
-
+            // Функція для увімкнення звуку
             function toggleSound() {
                 if (isSoundOn) {
                     bgMusic.pause();
@@ -491,41 +445,50 @@
 
             soundBtn.addEventListener('click', toggleSound);
 
+            // Кнопка перезапуску – просто перезавантажує сторінку
             refreshBtn.addEventListener('click', () => {
-                if (gpsWatcher) navigator.geolocation.clearWatch(gpsWatcher);
-                startGPS();
+                window.location.reload();
+            });
+
+            // ======================== СЛУХАЧІ ПОДІЙ AR.JS ========================
+            // Коли AR.js отримує позицію GPS і оновлює відстань до об'єкта
+            window.addEventListener('gps-entity-place-update-position', (e) => {
+                if (DEV_MODE) return;
+                const dist = e.detail.distance;
+                if (dist) updatePlanetVisibility(dist);
+            });
+
+            // Коли відео з камери завантажено – ховаємо лоадер
+            window.addEventListener('arjs-video-loaded', () => {
+                const loader = document.querySelector('.arjs-loader');
+                if (loader) loader.style.display = 'none';
             });
 
             // ======================== ІНІЦІАЛІЗАЦІЯ ========================
             window.addEventListener('load', () => {
-                if (!DEV_MODE) {
-                    startGPS();
-                } else {
+                if (DEV_MODE) {
+                    // Режим тестування: показуємо планету на відстані 12 м
                     updatePlanetVisibility(12);
                     instructionEl.innerText = '🧪 РЕЖИМ ТЕСТУ (планета видима)';
+                    // Ховаємо лоадер одразу
+                    const loader = document.querySelector('.arjs-loader');
+                    if (loader) loader.style.display = 'none';
+                } else {
+                    instructionEl.innerText = '🌍 Отримання даних GPS…';
                 }
 
+                // Запит дозволу на орієнтацію для iOS
                 if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
                     document.body.addEventListener('click', () => {
                         DeviceOrientationEvent.requestPermission().catch(console.warn);
                     }, { once: true });
                 }
 
+                // Якщо через 10 секунд AR.js ще не завантажився – ховаємо лоадер про всяк випадок
                 setTimeout(() => {
                     const loader = document.querySelector('.arjs-loader');
                     if (loader) loader.style.display = 'none';
-                }, 4000);
-            });
-
-            window.addEventListener('arjs-video-loaded', () => {
-                const loader = document.querySelector('.arjs-loader');
-                if (loader) loader.style.display = 'none';
-            });
-
-            window.addEventListener('gps-entity-place-update-position', (e) => {
-                if (DEV_MODE) return;
-                const dist = e.detail.distance;
-                if (dist) updatePlanetVisibility(dist);
+                }, 10000);
             });
         })();
     </script>
