@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="uk">
 <head>
@@ -216,29 +217,26 @@
         (function() {
             // ======================== НАЛАШТУВАННЯ КАМЕРИ ЗА URL ========================
             const urlParams = new URLSearchParams(window.location.search);
-            const facingMode = urlParams.get('facingMode') || 'environment'; // 'user' або 'environment'
+            const facingMode = urlParams.get('facingMode') || 'environment';
             
-            // Встановлюємо атрибут arjs з правильним facingMode (без помилок, тому що виконується до ініціалізації сцени)
             const scene = document.getElementById('scene');
             scene.setAttribute('arjs', `sourceType: webcam; debugUIEnabled: false; trackingMethod: best; videoTexture: true; facingMode: ${facingMode};`);
 
-            // Оновлюємо текст кнопки відповідно до режиму
             const camBtn = document.getElementById('camBtn');
             camBtn.innerHTML = facingMode === 'environment' ? '📷 Тилова камера' : '📷 Фронтальна камера';
 
-            // Перемикання камери (перезавантажуємо з новим параметром)
             camBtn.addEventListener('click', () => {
                 const newFacing = facingMode === 'environment' ? 'user' : 'environment';
                 const url = new URL(window.location.href);
                 url.searchParams.set('facingMode', newFacing);
-                window.location.href = url.toString(); // перезавантаження
+                window.location.href = url.toString();
             });
 
             // ======================== ІНШІ НАЛАШТУВАННЯ ========================
-            const DEV_MODE = false; // Змініть на true для тестування без GPS
+            const DEV_MODE = false;
             const TARGET_LAT = 46.297082;
             const TARGET_LON = 30.650495;
-            const MAX_DISTANCE = 30; // метрів
+            const MAX_DISTANCE = 30;
 
             // ======================== 12 ЗАПИТАНЬ ========================
             const questions = [
@@ -278,33 +276,66 @@
             let isSoundOn = false;
             let gpsWatcher = null;
 
-            // ======================== ФУНКЦІЯ ФОТО (ВИПРАВЛЕНО) ========================
+            // ======================== ВИПРАВЛЕНА ФУНКЦІЯ ФОТО ========================
             function takeScreenshot() {
-                // Отримуємо canvas з рендерера A-Frame (той самий, що .a-canvas)
                 const canvas = scene.renderer?.domElement;
                 if (!canvas) {
-                    showToast('Canvas не знайдено', false);
+                    showToast('❌ Не знайдено canvas', false);
                     return;
                 }
 
-                // Переконуємося, що сцена відрендерила останній кадр
-                scene.renderer.render(scene.object3D, scene.camera);
+                // Даємо час на завершення рендерингу
+                setTimeout(() => {
+                    try {
+                        // Спроба 1: toBlob (краще для пам'яті)
+                        canvas.toBlob(blob => {
+                            if (!blob) {
+                                // Якщо toBlob не спрацював, пробуємо toDataURL
+                                fallbackToDataURL();
+                                return;
+                            }
+                            const url = URL.createObjectURL(blob);
+                            const link = document.createElement('a');
+                            link.href = url;
+                            link.download = `ar_selfie_${Date.now()}.png`;
 
-                const link = document.createElement('a');
-                link.download = `ar_selfie_${new Date().toISOString().slice(0,19).replace(/:/g, '-')}.png`;
-
-                canvas.toBlob((blob) => {
-                    if (!blob) {
-                        showToast('Не вдалося створити фото', false);
-                        return;
+                            if (link.download !== undefined) {
+                                link.click();
+                                showToast('✅ Фото збережено!', true);
+                            } else {
+                                // Для мобільних – спроба поділитися або відкрити
+                                if (navigator.share && navigator.canShare?.({ files: [new File([blob], 'photo.png', { type: 'image/png' })] })) {
+                                    navigator.share({
+                                        files: [new File([blob], 'ar_photo.png', { type: 'image/png' })],
+                                        title: 'AR Фото',
+                                    }).catch(() => window.open(url, '_blank'));
+                                } else {
+                                    window.open(url, '_blank');
+                                }
+                            }
+                            setTimeout(() => URL.revokeObjectURL(url), 1000);
+                        }, 'image/png');
+                    } catch (e) {
+                        fallbackToDataURL();
                     }
-                    const url = URL.createObjectURL(blob);
-                    link.href = url;
-                    link.click();
 
-                    setTimeout(() => URL.revokeObjectURL(url), 100);
-                    showToast('✅ Фото збережено!', true);
-                }, 'image/png');
+                    function fallbackToDataURL() {
+                        try {
+                            const dataURL = canvas.toDataURL('image/png');
+                            const link = document.createElement('a');
+                            link.href = dataURL;
+                            link.download = `ar_selfie_${Date.now()}.png`;
+                            if (link.download !== undefined) {
+                                link.click();
+                            } else {
+                                window.open(dataURL, '_blank');
+                            }
+                            showToast('✅ Фото збережено (альтернативний метод)', true);
+                        } catch (err) {
+                            showToast('❌ Не вдалося зберегти фото', false);
+                        }
+                    }
+                }, 150);
             }
 
             photoBtn.addEventListener('click', takeScreenshot);
@@ -491,7 +522,6 @@
                 if (loader) loader.style.display = 'none';
             });
 
-            // Подія від AR.js (оновлення позиції)
             window.addEventListener('gps-entity-place-update-position', (e) => {
                 if (DEV_MODE) return;
                 const dist = e.detail.distance;
