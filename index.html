@@ -172,13 +172,13 @@
         <!-- Контейнер планети, прив'язаний до координат школи -->
         <a-entity
             id="planetContainer"
-            gps-entity-place="latitude: 46.297082; longitude: 30.650495;"
+            gps-entity-place="latitude:46.297324; longitude: 30.650495;"
             position="0 4 0"   <!-- центр на висоті 4 м (планета стоятиме на землі) -->
         >
             <!-- Сама планета (куля) зі збільшеним радіусом -->
             <a-sphere
                 id="planet"
-                radius="4"
+                radius="6"
                 src="#earthTexture"
                 material="shader: flat;"
                 animation="property: rotation; to: 0 360 0; loop: true; dur: 30000; easing: linear"
@@ -548,3 +548,4 @@
     </script>
 </body>
 </html>
+
