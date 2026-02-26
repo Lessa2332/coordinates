@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="uk">
 <head>
@@ -142,14 +141,14 @@
     <div class="arjs-loader" id="loader">🛰️ Завантаження AR ...</div>
 
     <div class="ui-panel" id="uiPanel">
-        <div id="instruction">🌍 Отримання даних GPS…</div>
+        <div id="instruction">🌍 Шукаємо GPS та камеру…</div>
         <div id="distance-badge">— м</div>
     </div>
 
     <div class="controls">
         <button id="quizBtn" class="btn">📋 Тест (12)</button>
         <button id="soundBtn" class="btn">🔊 Звук</button>
-        <button id="refreshBtn" class="btn">🔄 Перезапустити</button>
+        <button id="refreshBtn" class="btn">🔄 GPS</button>
         <button id="camBtn" class="btn">📷 Тилова камера</button>
         <button id="photoBtn" class="btn">📸 Зробити фото</button>
     </div>
@@ -166,7 +165,7 @@
         <a-assets>
             <!-- Локальна текстура Землі -->
             <img id="earthTexture" src="./earth.jpg" crossorigin="anonymous">
-            <!-- Локальний аудіофайл (без CORS проблем) -->
+            <!-- Локальний аудіофайл -->
             <audio id="bgMusic" src="./bg-music.mp3" preload="auto" loop crossorigin="anonymous"></audio>
         </a-assets>
 
@@ -207,7 +206,7 @@
             </a-entity>
         </a-entity>
 
-        <!-- Камера з GPS та курсором (raycaster обмежено класом clickable) -->
+        <!-- Камера з GPS та курсором -->
         <a-camera id="camera" gps-camera="minDistance: 1; maxDistance: 500;" rotation-reader>
             <a-cursor color="#4facfe" scale="0.7 0.7 0.7" fuse="false" raycaster="objects: .clickable"></a-cursor>
         </a-camera>
@@ -274,8 +273,9 @@
             const bgMusic = document.getElementById('bgMusic');
 
             let isSoundOn = false;
+            let gpsWatcher = null;
 
-            // ======================== ФУНКЦІЯ ФОТО (ВИПРАВЛЕНА) ========================
+            // ======================== ФУНКЦІЯ ФОТО (НАДІЙНА) ========================
             function takeScreenshot() {
                 const canvas = scene.renderer?.domElement;
                 if (!canvas) {
@@ -348,10 +348,24 @@
                 setTimeout(() => toast.remove(), 1500);
             }
 
-            // Оновлення інтерфейсу на основі відстані від AR.js
-            function updatePlanetVisibility(dist) {
+            function calculateDistance(lat1, lon1, lat2, lon2) {
+                const R = 6371e3;
+                const φ1 = lat1 * Math.PI/180;
+                const φ2 = lat2 * Math.PI/180;
+                const Δφ = (lat2-lat1) * Math.PI/180;
+                const Δλ = (lon2-lon1) * Math.PI/180;
+                const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+                          Math.cos(φ1) * Math.cos(φ2) *
+                          Math.sin(Δλ/2) * Math.sin(Δλ/2);
+                const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+                return R * c;
+            }
+
+            function updatePlanetVisibility(dist, accuracy = null) {
                 const rounded = Math.round(dist);
-                distanceBadge.innerText = rounded + ' м';
+                let accuracyText = (accuracy && accuracy < 100) ? ` ±${Math.round(accuracy)}м` : '';
+                distanceBadge.innerText = rounded + ' м' + accuracyText;
+                
                 if (dist <= MAX_DISTANCE) {
                     planet.setAttribute('visible', 'true');
                     instructionEl.innerText = '🌍 Планета поруч! Дивись навколо';
@@ -363,7 +377,43 @@
                 }
             }
 
-            // Функція для увімкнення звуку
+            // ======================== РУЧНИЙ GPS-ТРЕКІНГ ========================
+            function startGPS() {
+                if (!navigator.geolocation) {
+                    instructionEl.innerText = '❌ GPS не підтримується';
+                    return;
+                }
+                instructionEl.innerText = '📡 Отримання GPS…';
+                
+                navigator.geolocation.getCurrentPosition(
+                    (pos) => {
+                        instructionEl.innerText = '✅ GPS отримано';
+                        // Починаємо відстеження
+                        if (gpsWatcher) navigator.geolocation.clearWatch(gpsWatcher);
+                        gpsWatcher = navigator.geolocation.watchPosition(
+                            (p) => {
+                                const dist = calculateDistance(
+                                    p.coords.latitude, p.coords.longitude,
+                                    TARGET_LAT, TARGET_LON
+                                );
+                                updatePlanetVisibility(dist, p.coords.accuracy);
+                            },
+                            (err) => {
+                                console.warn('watchPosition error:', err);
+                                instructionEl.innerText = '⚠️ Помилка GPS';
+                            },
+                            { enableHighAccuracy: true, maximumAge: 2000, timeout: 10000 }
+                        );
+                    },
+                    (err) => {
+                        instructionEl.innerText = '🔐 Дозвольте доступ до GPS';
+                        console.warn('getCurrentPosition error:', err);
+                    },
+                    { enableHighAccuracy: true, timeout: 15000 }
+                );
+            }
+
+            // ======================== ЗВУК ========================
             function toggleSound() {
                 if (isSoundOn) {
                     bgMusic.pause();
@@ -445,36 +495,18 @@
 
             soundBtn.addEventListener('click', toggleSound);
 
-            // Кнопка перезапуску – просто перезавантажує сторінку
             refreshBtn.addEventListener('click', () => {
-                window.location.reload();
-            });
-
-            // ======================== СЛУХАЧІ ПОДІЙ AR.JS ========================
-            // Коли AR.js отримує позицію GPS і оновлює відстань до об'єкта
-            window.addEventListener('gps-entity-place-update-position', (e) => {
-                if (DEV_MODE) return;
-                const dist = e.detail.distance;
-                if (dist) updatePlanetVisibility(dist);
-            });
-
-            // Коли відео з камери завантажено – ховаємо лоадер
-            window.addEventListener('arjs-video-loaded', () => {
-                const loader = document.querySelector('.arjs-loader');
-                if (loader) loader.style.display = 'none';
+                if (gpsWatcher) navigator.geolocation.clearWatch(gpsWatcher);
+                startGPS();
             });
 
             // ======================== ІНІЦІАЛІЗАЦІЯ ========================
             window.addEventListener('load', () => {
-                if (DEV_MODE) {
-                    // Режим тестування: показуємо планету на відстані 12 м
+                if (!DEV_MODE) {
+                    startGPS();
+                } else {
                     updatePlanetVisibility(12);
                     instructionEl.innerText = '🧪 РЕЖИМ ТЕСТУ (планета видима)';
-                    // Ховаємо лоадер одразу
-                    const loader = document.querySelector('.arjs-loader');
-                    if (loader) loader.style.display = 'none';
-                } else {
-                    instructionEl.innerText = '🌍 Отримання даних GPS…';
                 }
 
                 // Запит дозволу на орієнтацію для iOS
@@ -484,11 +516,23 @@
                     }, { once: true });
                 }
 
-                // Якщо через 10 секунд AR.js ще не завантажився – ховаємо лоадер про всяк випадок
+                // Ховаємо лоадер після завантаження відео
+                window.addEventListener('arjs-video-loaded', () => {
+                    const loader = document.querySelector('.arjs-loader');
+                    if (loader) loader.style.display = 'none';
+                });
+
+                // Запасний таймер на випадок, якщо подія не спрацює
                 setTimeout(() => {
                     const loader = document.querySelector('.arjs-loader');
                     if (loader) loader.style.display = 'none';
                 }, 10000);
+            });
+
+            // Додатково обробляємо події AR.js (не обов'язково, але для логування)
+            window.addEventListener('gps-entity-place-update-position', (e) => {
+                // Можете розкоментувати для налагодження:
+                // console.log('AR.js distance:', e.detail.distance);
             });
         })();
     </script>
